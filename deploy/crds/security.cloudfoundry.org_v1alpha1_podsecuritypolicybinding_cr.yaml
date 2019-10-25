@@ -1,7 +1,10 @@
 apiVersion: security.cloudfoundry.org/v1alpha1
 kind: PodSecurityPolicyBinding
 metadata:
-  name: example-podsecuritypolicybinding
+  name: test1
 spec:
-  # Add fields here
-  size: 3
+  policy: unprivileged
+  subjects:
+  - kind: ServiceAccount
+    namespace: psp
+    name: default
