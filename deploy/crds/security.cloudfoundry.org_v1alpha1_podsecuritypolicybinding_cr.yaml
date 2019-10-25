@@ -1,0 +1,7 @@
+apiVersion: security.cloudfoundry.org/v1alpha1
+kind: PodSecurityPolicyBinding
+metadata:
+  name: example-podsecuritypolicybinding
+spec:
+  # Add fields here
+  size: 3
