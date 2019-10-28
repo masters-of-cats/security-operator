@@ -1,0 +1,10 @@
+apiVersion: security.cloudfoundry.org/v1alpha1
+kind: PodSecurityPolicyBinding
+metadata:
+  name: for-deployer
+spec:
+  policy: unprivileged
+  subjects:
+  - kind: ServiceAccount
+    namespace: foo
+    name: deployer
