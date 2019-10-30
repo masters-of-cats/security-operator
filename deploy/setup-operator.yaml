@@ -89,6 +89,12 @@ rules:
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
+  - roles
+  verbs:
+  - '*'
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
   - rolebindings
   verbs:
   - '*'
