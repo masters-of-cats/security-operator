@@ -7,11 +7,10 @@ import (
 
 const Unprivileged = "unprivileged"
 
-func NewPodSecurityPolicy(namespace string) *policy.PodSecurityPolicy {
+func NewPodSecurityPolicy() *policy.PodSecurityPolicy {
 	return &policy.PodSecurityPolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      Unprivileged,
+			Name: Unprivileged,
 			Annotations: map[string]string{
 				"seccomp.security.alpha.kubernetes.io/allowedProfileNames": "docker/default,runtime/default",
 				"seccomp.security.alpha.kubernetes.io/defaultProfileName":  "runtime/default",

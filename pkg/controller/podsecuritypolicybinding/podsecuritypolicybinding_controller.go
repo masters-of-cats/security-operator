@@ -99,14 +99,15 @@ func (r *ReconcilePodSecurityPolicyBinding) Reconcile(request reconcile.Request)
 		return reconcile.Result{}, fmt.Errorf("policy name %q invalid - must be one of [%q]", pspBinding.Spec.Policy, policies.Unprivileged)
 	}
 
+	err = r.ensurePodSecurityPolicyIsInstalled(reqLogger)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
 	for _, subject := range pspBinding.Spec.Subjects {
 		namespace := subject.Namespace
-		err = r.ensurePodSecurityPolicyIsInstalled(reqLogger, namespace)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
 
-		err = r.ensureClusterRoleExists(reqLogger, namespace, pspBinding.Spec.Policy)
+		err = r.ensureRoleExists(reqLogger, namespace, pspBinding.Spec.Policy)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -141,7 +142,7 @@ func (r *ReconcilePodSecurityPolicyBinding) createRoleBinding(reqLogger logr.Log
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
+			Kind:     "Role",
 			Name:     policyName,
 		},
 		Subjects: []rbacv1.Subject{subject},
@@ -152,30 +153,30 @@ func (r *ReconcilePodSecurityPolicyBinding) createRoleBinding(reqLogger logr.Log
 	return r.client.Create(context.TODO(), &binding)
 }
 
-func (r *ReconcilePodSecurityPolicyBinding) ensureClusterRoleExists(reqLogger logr.Logger, namespace, policyName string) error {
-	existingRole := &rbacv1.ClusterRole{}
+func (r *ReconcilePodSecurityPolicyBinding) ensureRoleExists(reqLogger logr.Logger, namespace, policyName string) error {
+	existingRole := &rbacv1.Role{}
 	err := r.client.Get(context.TODO(), client.ObjectKey{Namespace: namespace, Name: policyName}, existingRole)
 	if err == nil {
 		return nil
 	}
 
 	if errors.IsNotFound(err) {
-		reqLogger.Info("Creating the missing ClusterRole", "clusterRoleName", policyName)
-		return r.createClusterRole(reqLogger, namespace, policyName)
+		reqLogger.Info("Creating the missing Role", "RoleName", policyName)
+		return r.createRole(reqLogger, namespace, policyName)
 	}
 	return err
 }
 
-func (r *ReconcilePodSecurityPolicyBinding) createClusterRole(reqLogger logr.Logger, namespace, policyName string) error {
-	role := &rbacv1.ClusterRole{
+func (r *ReconcilePodSecurityPolicyBinding) createRole(reqLogger logr.Logger, namespace, policyName string) error {
+	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 			Name:      policyName,
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
-				APIGroups:     []string{"policy"},
-				Resources:     []string{"podsecuritypolicy"},
+				APIGroups:     []string{"extensions"},
+				Resources:     []string{"podsecuritypolicies"},
 				ResourceNames: []string{policyName},
 				Verbs:         []string{"use"},
 			},
@@ -184,10 +185,10 @@ func (r *ReconcilePodSecurityPolicyBinding) createClusterRole(reqLogger logr.Log
 	return r.client.Create(context.TODO(), role)
 }
 
-func (r *ReconcilePodSecurityPolicyBinding) ensurePodSecurityPolicyIsInstalled(reqLogger logr.Logger, pspNamespace string) error {
+func (r *ReconcilePodSecurityPolicyBinding) ensurePodSecurityPolicyIsInstalled(reqLogger logr.Logger) error {
 	foundPolicy := &policy.PodSecurityPolicy{}
 
-	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: pspNamespace, Name: policies.Unprivileged}, foundPolicy)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: policies.Unprivileged}, foundPolicy)
 	if err == nil {
 		reqLogger.Info("The unprivileged PodSecurityPolicy already exists!")
 		return nil
@@ -195,7 +196,7 @@ func (r *ReconcilePodSecurityPolicyBinding) ensurePodSecurityPolicyIsInstalled(r
 
 	if errors.IsNotFound(err) {
 		reqLogger.Info("Installing the unprivileged PodSecurityPolicy")
-		return r.client.Create(context.TODO(), policies.NewPodSecurityPolicy(pspNamespace))
+		return r.client.Create(context.TODO(), policies.NewPodSecurityPolicy())
 	}
 	return err
 }
